@@ -4,19 +4,16 @@ import os from 'os';
 import fetch from 'cross-fetch';
 import {capture, withTimeout} from '../utils.js';
 
-// Store allowed directories - temporarily allowing all paths
+// Store allowed directories with specific paths
 // TODO: Make this configurable through a configuration file
 const allowedDirectories: string[] = [
-    "/" // Root directory - effectively allows all paths
+    "/Users/wenleliao/opensource", // 指定的特定目錄
+    "/Users/wenleliao/doc",
+    "/Users/wenleliao/RiderProjects",
+    "/Users/wenleliao/Documents/Cline/MCP",
+    process.cwd()  // Current working directory
+    // 移除了用戶主目錄的存取權限
 ];
-
-// Original implementation commented out for future reference
-/*
-const allowedDirectories: string[] = [
-    process.cwd(), // Current working directory
-    os.homedir()   // User's home directory
-];
-*/
 
 // Normalize all paths consistently
 function normalizePath(p: string): string {
@@ -76,6 +73,20 @@ export async function validatePath(requestedPath: string): Promise<string> {
         const absolute = path.isAbsolute(expandedPath)
             ? path.resolve(expandedPath)
             : path.resolve(process.cwd(), expandedPath);
+        
+        // Check if the path is within one of the allowed directories
+        const isAllowed = allowedDirectories.some(dir => {
+            // Normalize both paths for consistent comparison
+            const normalizedDir = normalizePath(dir);
+            const normalizedPath = normalizePath(absolute);
+            
+            // Check if the path is exactly the directory or is contained within it
+            return normalizedPath === normalizedDir || normalizedPath.startsWith(normalizedDir + path.sep);
+        });
+        
+        if (!isAllowed) {
+            return `__ERROR__: Access denied. Path is not within allowed directories: ${absolute}`;
+        }
         
         // Check if path exists
         try {
@@ -203,6 +214,20 @@ export async function readFileFromDisk(filePath: string, returnMetadata?: boolea
     
     const validPath = await validatePath(filePath);
     
+    // Check if the path validation returned an error
+    if (validPath.startsWith('__ERROR__:')) {
+        const errorMessage = validPath.substring('__ERROR__:'.length).trim();
+        if (returnMetadata) {
+            return { 
+                content: errorMessage, 
+                mimeType: 'text/plain', 
+                isImage: false 
+            };
+        } else {
+            return errorMessage;
+        }
+    }
+    
     // Check file size before attempting to read
     try {
         const stats = await fs.stat(validPath);
@@ -296,6 +321,13 @@ export async function readFile(filePath: string, returnMetadata?: boolean, isUrl
 
 export async function writeFile(filePath: string, content: string): Promise<void> {
     const validPath = await validatePath(filePath);
+    
+    // Check if the path validation returned an error
+    if (validPath.startsWith('__ERROR__:')) {
+        const errorMessage = validPath.substring('__ERROR__:'.length).trim();
+        throw new Error(errorMessage);
+    }
+    
     await fs.writeFile(validPath, content, "utf-8");
 }
 
@@ -333,11 +365,25 @@ export async function readMultipleFiles(paths: string[]): Promise<MultiFileResul
 
 export async function createDirectory(dirPath: string): Promise<void> {
     const validPath = await validatePath(dirPath);
+    
+    // Check if the path validation returned an error
+    if (validPath.startsWith('__ERROR__:')) {
+        const errorMessage = validPath.substring('__ERROR__:'.length).trim();
+        throw new Error(errorMessage);
+    }
+    
     await fs.mkdir(validPath, { recursive: true });
 }
 
 export async function listDirectory(dirPath: string): Promise<string[]> {
     const validPath = await validatePath(dirPath);
+    
+    // Check if the path validation returned an error
+    if (validPath.startsWith('__ERROR__:')) {
+        const errorMessage = validPath.substring('__ERROR__:'.length).trim();
+        throw new Error(errorMessage);
+    }
+    
     const entries = await fs.readdir(validPath, { withFileTypes: true });
     return entries.map((entry) => `${entry.isDirectory() ? "[DIR]" : "[FILE]"} ${entry.name}`);
 }
@@ -345,11 +391,32 @@ export async function listDirectory(dirPath: string): Promise<string[]> {
 export async function moveFile(sourcePath: string, destinationPath: string): Promise<void> {
     const validSourcePath = await validatePath(sourcePath);
     const validDestPath = await validatePath(destinationPath);
+    
+    // Check if either path validation returned an error
+    if (validSourcePath.startsWith('__ERROR__:')) {
+        const errorMessage = validSourcePath.substring('__ERROR__:'.length).trim();
+        throw new Error(errorMessage);
+    }
+    
+    if (validDestPath.startsWith('__ERROR__:')) {
+        const errorMessage = validDestPath.substring('__ERROR__:'.length).trim();
+        throw new Error(errorMessage);
+    }
+    
     await fs.rename(validSourcePath, validDestPath);
 }
 
 export async function searchFiles(rootPath: string, pattern: string): Promise<string[]> {
     const results: string[] = [];
+    
+    // Validate the root path first
+    const validPath = await validatePath(rootPath);
+    
+    // Check if path validation returned an error
+    if (validPath.startsWith('__ERROR__:')) {
+        const errorMessage = validPath.substring('__ERROR__:'.length).trim();
+        throw new Error(errorMessage);
+    }
 
     async function search(currentPath: string) {
         const entries = await fs.readdir(currentPath, { withFileTypes: true });
@@ -358,7 +425,12 @@ export async function searchFiles(rootPath: string, pattern: string): Promise<st
             const fullPath = path.join(currentPath, entry.name);
             
             try {
-                await validatePath(fullPath);
+                const validFullPath = await validatePath(fullPath);
+                
+                // Skip paths that aren't allowed
+                if (validFullPath.startsWith('__ERROR__:')) {
+                    continue;
+                }
 
                 if (entry.name.toLowerCase().includes(pattern.toLowerCase())) {
                     results.push(fullPath);
@@ -373,14 +445,19 @@ export async function searchFiles(rootPath: string, pattern: string): Promise<st
         }
     }
     
-    // if path not exist, it will throw an error
-    const validPath = await validatePath(rootPath);
     await search(validPath);
     return results;
 }
 
 export async function getFileInfo(filePath: string): Promise<Record<string, any>> {
     const validPath = await validatePath(filePath);
+    
+    // Check if path validation returned an error
+    if (validPath.startsWith('__ERROR__:')) {
+        const errorMessage = validPath.substring('__ERROR__:'.length).trim();
+        throw new Error(errorMessage);
+    }
+    
     const stats = await fs.stat(validPath);
     
     return {
@@ -395,5 +472,5 @@ export async function getFileInfo(filePath: string): Promise<Record<string, any>
 }
 
 export function listAllowedDirectories(): string[] {
-    return ["/ (All paths are currently allowed)"];
+    return allowedDirectories.map(dir => dir);
 }
