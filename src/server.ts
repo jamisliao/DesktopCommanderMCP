@@ -218,6 +218,16 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       {
+        name: "reload_allowed_directories",
+        description: 
+          "Reloads the list of allowed directories from the config file.",
+        inputSchema: {
+          type: "object",
+          properties: {},
+          required: [],
+        },
+      },
+      {
         name: "edit_block",
         description:
             "Apply surgical text replacements to files. Best for small changes (<20% of file size). " +
@@ -301,6 +311,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request: CallToolRequest)
         
       case "list_allowed_directories":
         return handlers.handleListAllowedDirectories();
+        
+      case "reload_allowed_directories":
+        return handlers.handleReloadAllowedDirectories();
         
       case "edit_block":
         return handlers.handleEditBlock(args);

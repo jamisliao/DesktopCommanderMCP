@@ -269,7 +269,35 @@ Claude Desktop Commander operates within certain safety boundaries:
 
 ### Can I control which directories Claude can access?
 
-Recent updates have removed path limitations, and work is in progress to add configuration options that will allow you to specify which directories the tool can access. This feature is being developed in [PR #16](https://github.com/wonderwhy-er/ClaudeDesktopCommander/pull/16).
+Yes, you can control which directories Claude can access in several ways:
+
+1. **Command line parameters:**
+   ```bash
+   # Specify allowed directories when starting the server
+   node index.js --allowed-dir=/path/to/dir1 --allowed-dir=/path/to/dir2
+   
+   # Or using short form
+   node index.js -d /path/to/dir1 -d /path/to/dir2
+   ```
+   
+   The command line parameters override any directories in config.json.
+
+2. **Configuration file:**
+   Edit the `config.json` file and add or modify the `allowedDirectories` array:
+   ```json
+   {
+     "blockedCommands": [...],
+     "allowedDirectories": [
+       "/path/to/dir1",
+       "/path/to/dir2"
+     ]
+   }
+   ```
+
+3. **Reload during runtime:**
+   After changing the config.json file, you can use the `reload_allowed_directories` function in Claude to apply the changes without restarting.
+   
+Note that the current working directory will always be added to the allowed list automatically, and changes made via command line will only apply for that session.
 
 ### What commands are blocked by default?
 

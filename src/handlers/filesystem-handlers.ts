@@ -8,6 +8,7 @@ import {
     searchFiles,
     getFileInfo,
     listAllowedDirectories,
+    reloadAllowedDirectories,
     type FileResult,
     type MultiFileResult
 } from '../tools/filesystem.js';
@@ -272,4 +273,28 @@ export function handleListAllowedDirectories(): ServerResult {
             text: `Allowed directories:\n${directories.join('\n')}` 
         }],
     };
+}
+
+/**
+ * Handle reload_allowed_directories command
+ */
+export async function handleReloadAllowedDirectories(): Promise<ServerResult> {
+    try {
+        const directories = await reloadAllowedDirectories();
+        return {
+            content: [{ 
+                type: "text", 
+                text: `Reloaded allowed directories from config:\n${directories.join('\n')}` 
+            }],
+        };
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        return {
+            content: [{ 
+                type: "text", 
+                text: `Error reloading allowed directories: ${errorMessage}` 
+            }],
+            isError: true
+        };
+    }
 }

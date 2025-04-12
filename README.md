@@ -124,6 +124,26 @@ When installed through npx (Option 1) or Smithery (Option 2), Desktop Commander 
 
 For manual installations, you can update by running the setup command again.
 
+## Command Line Options
+
+When launching Desktop Commander, you can specify allowed directories directly from the command line:
+
+```bash
+# Basic usage with allowed directories
+node index.js --allowed-dir=/path/to/dir1 --allowed-dir=/path/to/dir2
+
+# Using the short form
+node index.js -d /path/to/dir1 -d /path/to/dir2
+
+# Show help information
+node index.js --help
+```
+
+When using allowed directories via command line:
+- These will override any directories specified in config.json
+- The current working directory will always be included automatically
+- This feature is useful for quick testing or when you need temporary access to specific directories
+
 ## Usage
 
 The server provides these tool categories:
@@ -240,7 +260,7 @@ Created as part of exploring Claude MCPs: https://youtube.com/live/TlbjFDbl5Us
 
 The following features are currently being developed or planned:
 
-- **Better configurations** ([in progress](https://github.com/wonderwhy-er/ClaudeDesktopCommander/pull/16)) - Improved settings for allowed paths, commands and shell environment
+- **Better configurations** ([in progress](https://github.com/wonderwhy-er/ClaudeDesktopCommander/pull/16)) - Improved settings for allowed paths, commands and shell environment, including command line options for specifying allowed directories
 - **Windows environment fixes** ([in progress](https://github.com/wonderwhy-er/ClaudeDesktopCommander/pull/13)) - Resolving issues specific to Windows platforms
 - **Linux improvements** ([in progress](https://github.com/wonderwhy-er/ClaudeDesktopCommander/pull/12)) - Enhancing compatibility with various Linux distributions
 - **Support for WSL** - Windows Subsystem for Linux integration

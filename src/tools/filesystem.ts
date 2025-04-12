@@ -3,17 +3,91 @@ import path from "path";
 import os from 'os';
 import fetch from 'cross-fetch';
 import {capture, withTimeout} from '../utils.js';
+import { CONFIG_FILE } from '../config.js';
 
-// Store allowed directories with specific paths
-// TODO: Make this configurable through a configuration file
-const allowedDirectories: string[] = [
-    "/Users/wenleliao/opensource", // 指定的特定目錄
+// 默認允許的目錄，如果配置文件和命令行參數都不存在或讀取失敗則使用這些
+let allowedDirectories: string[] = [
+    "/Users/wenleliao/opensource", 
     "/Users/wenleliao/doc",
     "/Users/wenleliao/RiderProjects",
     "/Users/wenleliao/Documents/Cline/MCP",
     process.cwd()  // Current working directory
-    // 移除了用戶主目錄的存取權限
 ];
+
+/**
+ * 解析命令行參數，獲取允許的目錄列表
+ * @returns 從命令行獲取的允許目錄列表，如果沒有則返回 null
+ */
+function parseCommandLineArgs(): string[] | null {
+    const directories: string[] = [];
+    
+    // 遍歷命令行參數
+    for (let i = 2; i < process.argv.length; i++) {
+        const arg = process.argv[i];
+        
+        // 檢查是否為 --allowed-dir 或 -d 參數
+        if (arg === '--allowed-dir' || arg === '-d') {
+            // 確保有下一個參數
+            if (i + 1 < process.argv.length) {
+                const dirPath = process.argv[++i];
+                directories.push(dirPath);
+            }
+        } else if (arg.startsWith('--allowed-dir=')) {
+            // 處理形如 --allowed-dir=/path/to/dir 的格式
+            const dirPath = arg.split('=')[1];
+            if (dirPath) {
+                directories.push(dirPath);
+            }
+        }
+    }
+    
+    return directories.length > 0 ? directories : null;
+}
+
+// 嘗試加載允許的目錄，優先使用命令行參數，然後是配置文件，最後是默認值
+async function loadAllowedDirectories() {
+    try {
+        // 1. 首先嘗試從命令行參數獲取
+        const cmdDirs = parseCommandLineArgs();
+        if (cmdDirs) {
+            // 使用命令行參數指定的目錄
+            allowedDirectories = cmdDirs;
+            
+            // 始終添加當前工作目錄
+            if (!allowedDirectories.includes(process.cwd())) {
+                allowedDirectories.push(process.cwd());
+            }
+            
+            console.log('Loaded allowed directories from command line arguments:', allowedDirectories);
+            return;
+        }
+        
+        // 2. 如果命令行參數未指定，嘗試從配置文件讀取
+        const configData = await fs.readFile(CONFIG_FILE, 'utf-8');
+        const config = JSON.parse(configData);
+        
+        // 如果配置文件中有 allowedDirectories 字段且是數組，則使用它
+        if (config.allowedDirectories && Array.isArray(config.allowedDirectories)) {
+            allowedDirectories = config.allowedDirectories;
+            
+            // 始終添加當前工作目錄
+            if (!allowedDirectories.includes(process.cwd())) {
+                allowedDirectories.push(process.cwd());
+            }
+            
+            console.log('Loaded allowed directories from config file:', allowedDirectories);
+        }
+    } catch (error) {
+        console.error('Error loading allowed directories:', error);
+        console.log('Using default allowed directories:', allowedDirectories);
+        // 發生錯誤時使用默認配置
+    }
+}
+
+// 立即加載配置
+loadAllowedDirectories().catch(error => {
+    console.error('Failed to load allowed directories:', error);
+});
 
 // Normalize all paths consistently
 function normalizePath(p: string): string {
@@ -472,5 +546,14 @@ export async function getFileInfo(filePath: string): Promise<Record<string, any>
 }
 
 export function listAllowedDirectories(): string[] {
-    return allowedDirectories.map(dir => dir);
+    return [...allowedDirectories]; // 返回副本以避免外部修改
+}
+
+/**
+ * 重新加載允許的目錄列表
+ * 當配置文件被修改時可以調用此函數
+ */
+export async function reloadAllowedDirectories(): Promise<string[]> {
+    await loadAllowedDirectories();
+    return listAllowedDirectories();
 }

@@ -13,5 +13,12 @@
     "useradd",
     "usermod",
     "groupadd"
+  ],
+  "allowedDirectories": [
+    "/Users/wenleliao/opensource",
+    "/Users/wenleliao/doc",
+    "/Users/wenleliao/RiderProjects",
+    "/Users/wenleliao/Documents/Cline/MCP",
+    "/Users/wenleliao"
   ]
 }

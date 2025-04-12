@@ -47,11 +47,36 @@ async function runSetup() {
   }
 }
 
+function showHelp() {
+  console.log(`
+Desktop Commander MCP - Command Line Options:
+
+Usage: node index.js [options]
+
+Options:
+  setup               Run setup script
+  --allowed-dir, -d   Specify an allowed directory (can be used multiple times)
+                      Example: --allowed-dir=/path/to/dir1 -d /path/to/dir2
+  --help, -h          Show this help message
+
+Examples:
+  node index.js --allowed-dir=/Users/username/projects
+  node index.js -d /path/to/dir1 -d /path/to/dir2
+  `);
+  process.exit(0);
+}
+
 async function runServer() {
   try {
     const transport = new FilteredStdioServerTransport();
 
     console.log("start")
+    // Check command line arguments
+    if (process.argv.includes('--help') || process.argv.includes('-h')) {
+      showHelp();
+      return;
+    }
+    
     // Check if first argument is "setup"
     if (process.argv[2] === 'setup') {
       await runSetup();
