@@ -3,16 +3,10 @@ import path from "path";
 import os from 'os';
 import fetch from 'cross-fetch';
 import {capture, withTimeout} from '../utils.js';
-import { CONFIG_FILE } from '../config.js';
+// 移除 CONFIG_FILE 的引入
 
-// 默認允許的目錄，如果配置文件和命令行參數都不存在或讀取失敗則使用這些
-let allowedDirectories: string[] = [
-    "/Users/wenleliao/opensource", 
-    "/Users/wenleliao/doc",
-    "/Users/wenleliao/RiderProjects",
-    "/Users/wenleliao/Documents/Cline/MCP",
-    process.cwd()  // Current working directory
-];
+// 初始化為空數組，強制用戶通過命令行參數指定
+let allowedDirectories: string[] = [];
 
 /**
  * 解析命令行參數，獲取允許的目錄列表
@@ -44,49 +38,37 @@ function parseCommandLineArgs(): string[] | null {
     return directories.length > 0 ? directories : null;
 }
 
-// 嘗試加載允許的目錄，優先使用命令行參數，然後是配置文件，最後是默認值
+// 修改加載允許目錄的函數，只使用命令行參數
 async function loadAllowedDirectories() {
     try {
-        // 1. 首先嘗試從命令行參數獲取
+        // 只從命令行參數獲取
         const cmdDirs = parseCommandLineArgs();
-        if (cmdDirs) {
+        if (cmdDirs && cmdDirs.length > 0) {
             // 使用命令行參數指定的目錄
             allowedDirectories = cmdDirs;
             
-            // 始終添加當前工作目錄
-            if (!allowedDirectories.includes(process.cwd())) {
-                allowedDirectories.push(process.cwd());
-            }
+            // 不再自動添加當前工作目錄
+            // (移除了自動添加 process.cwd() 的代碼)
             
-            console.log('Loaded allowed directories from command line arguments:', allowedDirectories);
+            process.stderr.write(`[filesystem] Loaded allowed directories from command line arguments: ${JSON.stringify(allowedDirectories)}\n`);
             return;
-        }
-        
-        // 2. 如果命令行參數未指定，嘗試從配置文件讀取
-        const configData = await fs.readFile(CONFIG_FILE, 'utf-8');
-        const config = JSON.parse(configData);
-        
-        // 如果配置文件中有 allowedDirectories 字段且是數組，則使用它
-        if (config.allowedDirectories && Array.isArray(config.allowedDirectories)) {
-            allowedDirectories = config.allowedDirectories;
-            
-            // 始終添加當前工作目錄
-            if (!allowedDirectories.includes(process.cwd())) {
-                allowedDirectories.push(process.cwd());
-            }
-            
-            console.log('Loaded allowed directories from config file:', allowedDirectories);
+        } else {
+            // 如果沒有指定目錄，不自動添加當前工作目錄，而是顯示警告
+            process.stderr.write('[filesystem] No allowed directories specified. Please specify allowed directories using --allowed-dir parameter.\n');
+            // 設置為空數組，不允許任何目錄
+            allowedDirectories = [];
         }
     } catch (error) {
-        console.error('Error loading allowed directories:', error);
-        console.log('Using default allowed directories:', allowedDirectories);
-        // 發生錯誤時使用默認配置
+        process.stderr.write(`[filesystem] Error loading allowed directories: ${error}\n`);
+        // 發生錯誤時不自動使用當前工作目錄，而是設置為空數組
+        allowedDirectories = [];
+        process.stderr.write(`[filesystem] No allowed directories set due to error. Please specify allowed directories using --allowed-dir parameter.\n`);
     }
 }
 
 // 立即加載配置
 loadAllowedDirectories().catch(error => {
-    console.error('Failed to load allowed directories:', error);
+    process.stderr.write(`[filesystem] Failed to load allowed directories: ${error}\n`);
 });
 
 // Normalize all paths consistently
@@ -551,7 +533,7 @@ export function listAllowedDirectories(): string[] {
 
 /**
  * 重新加載允許的目錄列表
- * 當配置文件被修改時可以調用此函數
+ * 僅從命令行參數加載
  */
 export async function reloadAllowedDirectories(): Promise<string[]> {
     await loadAllowedDirectories();

@@ -1,7 +1,7 @@
 import path from 'path';
 import process from 'process';
 
-export const CONFIG_FILE = path.join(process.cwd(), 'config.json');
+// 移除 CONFIG_FILE 配置
 export const LOG_FILE = path.join(process.cwd(), 'server.log');
 export const ERROR_LOG_FILE = path.join(process.cwd(), 'error.log');
 

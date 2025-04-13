@@ -48,7 +48,8 @@ async function runSetup() {
 }
 
 function showHelp() {
-  console.log(`
+  // 使用 stderr 輸出幫助信息，確保不會被 FilteredStdioServerTransport 過濾掉
+  const helpText = `
 Desktop Commander MCP - Command Line Options:
 
 Usage: node index.js [options]
@@ -62,7 +63,11 @@ Options:
 Examples:
   node index.js --allowed-dir=/Users/username/projects
   node index.js -d /path/to/dir1 -d /path/to/dir2
-  `);
+  `;
+  
+  process.stderr.write(helpText);
+  
+  // 直接退出，不執行後續程式碼
   process.exit(0);
 }
 
@@ -70,17 +75,31 @@ async function runServer() {
   try {
     const transport = new FilteredStdioServerTransport();
 
-    console.log("start")
+    // 檢查幫助命令放在最前面
     // Check command line arguments
     if (process.argv.includes('--help') || process.argv.includes('-h')) {
       showHelp();
-      return;
+      return; // This should never be reached due to process.exit in showHelp
     }
     
     // Check if first argument is "setup"
     if (process.argv[2] === 'setup') {
       await runSetup();
       return;
+    }
+    
+    // 檢查是否指定了允許的目錄
+    const hasAllowedDir = process.argv.some(arg => 
+      arg === '--allowed-dir' || 
+      arg === '-d' || 
+      arg.startsWith('--allowed-dir=')
+    );
+    
+    if (!hasAllowedDir) {
+      process.stderr.write("[desktop-commander] [error] No allowed directories specified.\n");
+      process.stderr.write("Please specify at least one allowed directory using --allowed-dir or -d\n");
+      showHelp();
+      process.exit(1);
     }
     
     // Handle uncaught exceptions
@@ -127,7 +146,11 @@ async function runServer() {
     await server.connect(transport);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    process.stderr.write(JSON.stringify({
+    // 使用stderr輸出日誌信息
+    process.stderr.write(`[server] Failed to start server: ${errorMessage}\n`);
+    
+    // 使用stdout輸出JSON格式的錯誤信息
+    process.stdout.write(JSON.stringify({
       type: 'error',
       timestamp: new Date().toISOString(),
       message: `Failed to start server: ${errorMessage}`
@@ -142,12 +165,15 @@ async function runServer() {
 
 runServer().catch(async (error) => {
   const errorMessage = error instanceof Error ? error.message : String(error);
-  process.stderr.write(JSON.stringify({
+  // 使用stderr輸出日誌信息
+  process.stderr.write(`[server] Fatal error running server: ${errorMessage}\n`);
+  
+  // 使用stdout輸出JSON格式的錯誤信息
+  process.stdout.write(JSON.stringify({
     type: 'error',
     timestamp: new Date().toISOString(),
     message: `Fatal error running server: ${errorMessage}`
   }) + '\n');
-
 
   capture('run_server_fatal_error', {
     error: errorMessage

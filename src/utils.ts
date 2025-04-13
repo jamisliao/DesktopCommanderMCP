@@ -43,6 +43,9 @@ try {
 }
 
 export const capture = (event: string, properties?: any) => {
+    // 使用 stderr 輸出日誌信息，避免影響 stdout 的 JSON 通信
+    process.stderr.write(`[capture] Event: ${event} ${properties ? JSON.stringify(properties) : ''}\n`);
+    
     if (!posthog || !isTrackingEnabled) {
         return;
     }

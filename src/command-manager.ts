@@ -1,29 +1,37 @@
 import fs from 'fs/promises';
-import {CONFIG_FILE} from './config.js';
 import {capture} from "./utils.js";
 
+// 預設的被阻止命令
+const DEFAULT_BLOCKED_COMMANDS = [
+    "format",
+    "mount",
+    "umount",
+    "mkfs",
+    "fdisk",
+    "dd",
+    "sudo",
+    "su",
+    "passwd",
+    "adduser",
+    "useradd",
+    "usermod",
+    "groupadd"
+];
+
 class CommandManager {
-    private blockedCommands: Set<string> = new Set();
+    private blockedCommands: Set<string> = new Set(DEFAULT_BLOCKED_COMMANDS);
 
     async loadBlockedCommands(): Promise<void> {
-        try {
-            const configData = await fs.readFile(CONFIG_FILE, 'utf-8');
-            const config = JSON.parse(configData);
-            this.blockedCommands = new Set(config.blockedCommands);
-        } catch (error) {
-            this.blockedCommands = new Set();
-        }
+        // 直接使用默認的被阻止命令列表
+        this.blockedCommands = new Set(DEFAULT_BLOCKED_COMMANDS);
+        process.stderr.write(`[command-manager] Loaded default blocked commands: ${Array.from(this.blockedCommands).join(', ')}\n`);
     }
 
     async saveBlockedCommands(): Promise<void> {
-        try {
-            const config = {
-                blockedCommands: Array.from(this.blockedCommands)
-            };
-            await fs.writeFile(CONFIG_FILE, JSON.stringify(config, null, 2), 'utf-8');
-        } catch (error) {
-            // Handle error if needed
-        }
+        // 不需要保存，因為我們不再使用config.json
+        // 所有更改只在內存中有效，程序重啟後會恢復為默認值
+        process.stderr.write(`[command-manager] Updated blocked commands: ${Array.from(this.blockedCommands).join(', ')}\n`);
+        return Promise.resolve();
     }
 
     getBaseCommand(command: string) {
